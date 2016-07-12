@@ -15,18 +15,18 @@ define accounts::user(
   $home_mode            = undef,
   $uid                  = undef,
   $gid                  = undef,
+  $create_group         = true,
   $groups               = [ ],
   $membership           = 'minimum',
   $password             = '!!',
   $locked               = false,
   $sshkeys              = [],
-  $purge_sshkeys        = false,
   $managehome           = true,
   $bashrc_content       = undef,
   $bash_profile_content = undef,
 ) {
   validate_re($ensure, '^present$|^absent$')
-  validate_bool($locked, $managehome, $purge_sshkeys)
+  validate_bool($locked, $managehome)
   validate_re($shell, '^/')
   validate_string($comment, $password)
   validate_array($groups, $sshkeys)
@@ -85,29 +85,31 @@ define accounts::user(
   }
 
   user { $name:
-    ensure         => $ensure,
-    shell          => $_shell,
-    comment        => "${comment}", # lint:ignore:only_variable_string
-    home           => $home_real,
-    uid            => $uid,
-    gid            => $_gid,
-    groups         => $groups,
-    membership     => $membership,
-    managehome     => $managehome,
-    password       => $password,
-    purge_ssh_keys => $purge_sshkeys,
+    ensure     => $ensure,
+    shell      => $_shell,
+    comment    => "${comment}", # lint:ignore:only_variable_string
+    home       => $home_real,
+    uid        => $uid,
+    gid        => $_gid,
+    groups     => $groups,
+    membership => $membership,
+    managehome => $managehome,
+    password   => $password,
   }
 
-  # use $gid instead of $_gid since `gid` in group can only take a number
-  group { $name:
-    ensure => $ensure,
-    gid    => $gid,
-  }
+  # Create or not a group with the same name of the user
+  if $create_group == true {
+    # use $gid instead of $_gid since `gid` in group can only take a number
+    group { $name:
+      ensure => $ensure,
+      gid    => $gid,
+    }
 
-  if $ensure == 'present' {
-    Group[$name] -> User[$name]
-  } else {
-    User[$name] -> Group[$name]
+    if $ensure == 'present' {
+      Group[$name] -> User[$name]
+    } else {
+      User[$name] -> Group[$name]
+    }
   }
 
   accounts::home_dir { $home_real:
@@ -117,7 +119,8 @@ define accounts::user(
     bashrc_content       => $bashrc_content,
     bash_profile_content => $bash_profile_content,
     user                 => $name,
+    group                => $gid,
     sshkeys              => $sshkeys,
-    require              => [ User[$name], Group[$name] ],
-  }
+    require              => [ User[$name] ],
+    }
 }
