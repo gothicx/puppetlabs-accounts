@@ -21,12 +21,13 @@ define accounts::user(
   $password             = '!!',
   $locked               = false,
   $sshkeys              = [],
+  $purge_sshkeys        = false,
   $managehome           = true,
   $bashrc_content       = undef,
   $bash_profile_content = undef,
 ) {
   validate_re($ensure, '^present$|^absent$')
-  validate_bool($locked, $managehome)
+  validate_bool($locked, $managehome, $purge_sshkeys)
   validate_re($shell, '^/')
   validate_string($comment, $password)
   validate_array($groups, $sshkeys)
@@ -85,16 +86,17 @@ define accounts::user(
   }
 
   user { $name:
-    ensure     => $ensure,
-    shell      => $_shell,
-    comment    => "${comment}", # lint:ignore:only_variable_string
-    home       => $home_real,
-    uid        => $uid,
-    gid        => $_gid,
-    groups     => $groups,
-    membership => $membership,
-    managehome => $managehome,
-    password   => $password,
+    ensure         => $ensure,
+    shell          => $_shell,
+    comment        => "${comment}", # lint:ignore:only_variable_string
+    home           => $home_real,
+    uid            => $uid,
+    gid            => $_gid,
+    groups         => $groups,
+    membership     => $membership,
+    managehome     => $managehome,
+    password       => $password,
+    purge_ssh_keys => $purge_sshkeys,
   }
 
   # Create or not a group with the same name of the user
